@@ -1,10 +1,10 @@
-import { Component } from 'react';
 import { nanoid } from 'nanoid';
 import { GlobalStyle } from './GlobalStyle';
 import { FormContact } from './phoneForm/NewPhoneForm';
 import { ContactList } from './Contacts/ContactList';
 import { Section } from './Section/Section';
 import { SearchBar } from './SearchBar/SearchBar';
+import { useEffect, useState } from 'react';
 
 const initialContacts = [
   { id: '1', firstName: 'Rosie Simpson', phoneNumber: '4591256' },
@@ -13,32 +13,32 @@ const initialContacts = [
   { id: '4', firstName: 'Annie Copeland', phoneNumber: '2279126' },
 ];
 
+const getInitialContacts = () => {
+  const localContacts = JSON.parse(
+    window.localStorage.getItem(LS_KEY_CONTACTS)
+  );
+  if (localContacts) {
+    return localContacts;
+  }
+  return initialContacts;
+};
+
 const LS_KEY_CONTACTS = 'contacts';
 
-export class App extends Component {
-  state = {
-    contacts: initialContacts,
-    filter: '',
-  };
+export const App = () => {
+  const [contacts, setContacts] = useState(getInitialContacts);
+  const [filter, setFilter] = useState('');
 
-  componentDidMount() {
-    const localContacts = JSON.parse(localStorage.getItem(LS_KEY_CONTACTS));
-    if (localContacts) {
-      this.setState({ contacts: localContacts });
-    }
-  }
+  const visibleContacts = contacts.filter(contact => {
+    return contact.firstName.toLowerCase().includes(filter.toLowerCase());
+  });
 
-  componentDidUpdate(prevProps, prevState) {
-    if (this.state.contacts !== prevState.contacts) {
-      localStorage.setItem(
-        LS_KEY_CONTACTS,
-        JSON.stringify(this.state.contacts)
-      );
-    }
-  }
+  useEffect(() => {
+    window.localStorage.setItem(LS_KEY_CONTACTS, JSON.stringify(contacts));
+  }, [contacts]);
 
-  addContact = newContact => {
-    const duplicateContact = this.state.contacts.find(
+  const addContact = newContact => {
+    const duplicateContact = contacts.find(
       contact =>
         contact.firstName.toLowerCase() === newContact.firstName.toLowerCase()
     );
@@ -46,51 +46,32 @@ export class App extends Component {
       return alert(`${duplicateContact.firstName} is already in contacts`);
     } else {
       const contactToAdd = { ...newContact, id: nanoid() };
-      this.setState(prevState => {
-        return {
-          contacts: [contactToAdd, ...prevState.contacts],
-        };
-      });
+      setContacts(prevContact => [contactToAdd, ...prevContact]);
     }
   };
 
-  deleteContact = idForDelete => {
-    this.setState(prevState => {
-      return {
-        contacts: prevState.contacts.filter(
-          contact => contact.id !== idForDelete
-        ),
-      };
-    });
-  };
-
-  filterContacts = filterValue => {
-    this.setState({ filter: filterValue });
-  };
-
-  render() {
-    const { filter, contacts } = this.state;
-
-    const visibleContacts = contacts.filter(contact => {
-      return contact.firstName.toLowerCase().includes(filter.toLowerCase());
-    });
-
-    return (
-      <div>
-        <Section title="Phonebook">
-          <FormContact onAdd={this.addContact} />
-        </Section>
-        {contacts.length > 0 && (
-          <Section title="Contacts">
-            <SearchBar filter={filter} filterContacts={this.filterContacts} />
-            <ContactList
-              contacts={visibleContacts}
-              onDelete={this.deleteContact}
-            />
-          </Section>
-        )}
-        <GlobalStyle />
-      </div>
+  const deleteContact = idForDelete => {
+    setContacts(prevContact =>
+      prevContact.filter(contact => contact.id !== idForDelete)
     );
-  }
-}
+  };
+
+  const filterContacts = filterValue => {
+    setFilter(filterValue);
+  };
+
+  return (
+    <div>
+      <Section title="Phonebook">
+        <FormContact onAdd={addContact} />
+      </Section>
+      {contacts.length > 0 && (
+        <Section title="Contacts">
+          <SearchBar filter={filter} filterContacts={filterContacts} />
+          <ContactList contacts={visibleContacts} onDelete={deleteContact} />
+        </Section>
+      )}
+      <GlobalStyle />
+    </div>
+  );
+};
